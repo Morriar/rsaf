@@ -1,0 +1,14 @@
+name: rsaf
+
+type: ruby
+
+up:
+  - ruby: 2.6.6
+  - bundler
+
+commands:
+  test:      "bin/test"
+  typecheck:
+    aliases: [ "tc" ]
+    run:     "bin/typecheck"
+  style:     "bin/style"
