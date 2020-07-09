@@ -3,7 +3,7 @@ name: rsaf
 type: ruby
 
 up:
-  - ruby: 2.6.3
+  - ruby: 2.6.6
   - bundler
 
 commands:

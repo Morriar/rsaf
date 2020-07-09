@@ -1,6 +1,10 @@
 require_relative 'rsaf/compiler'
 require_relative 'rsaf/config'
 require_relative 'rsaf/logger'
+require_relative 'rsaf/model'
+require_relative 'rsaf/modelbuilder'
+require_relative 'rsaf/modelize/scope_defs'
+require_relative 'rsaf/parser'
 
 require 'optparse'
 
@@ -41,7 +45,11 @@ module RSAF
       options = Options.new
       config = Config.new(colors: options.colors) # TODO option
       compiler = Compiler.new(config)
-      compiler.parse(*options.args)
+      files = compiler.list_files(*options.args)
+      trees = compiler.parse_files(*files)
+      model = compiler.modelize(*trees)
+      puts model.modules
+      puts model.classes
     end
 
     def self.exit_on_failure?
