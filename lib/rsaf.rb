@@ -3,7 +3,7 @@ require_relative 'rsaf/config'
 require_relative 'rsaf/logger'
 require_relative 'rsaf/model'
 require_relative 'rsaf/modelbuilder'
-require_relative 'rsaf/modelize/scope_defs'
+require_relative 'rsaf/modelize/build_scope_defs'
 require_relative 'rsaf/parser'
 
 require 'optparse'

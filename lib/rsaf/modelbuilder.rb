@@ -6,7 +6,10 @@ module RSAF
 
     def build(*trees)
       trees.each do |tree|
-        Modelize::ScopeDefs.new(@model).visit(tree)
+        Modelize::BuildScopeDefs.new(@model).visit(tree)
+        # TODO scopes
+        # TODO includes
+        # TODO inheritance
       end
     end
   end

@@ -1,6 +1,6 @@
 module RSAF
   module Modelize
-    class ScopeDefs
+    class BuildScopeDefs
       def initialize(model)
         @model = model
         root = Model::ModuleDef.new(nil, "<root>", "<root>")
@@ -20,6 +20,10 @@ module RSAF
           visit_def(node)
         when :defs
           visit_defs(node)
+        when :casgn
+          visit_const_assign(node)
+        when :send
+          visit_send(node)
         else
           visit_all(node.children)
         end
@@ -58,22 +62,15 @@ module RSAF
       end
 
       def visit_def(node)
-        args = []
-        # TODO Parse def args
-        # node.children[1].children.each do |n|
-          # args << RSAF::Model::RArg.new(n, n.children.first)
-        # end
-
         name = node.children.first
-        @stack.last.method_defs << Model::MethodDef.new(@stack.last, name, args)
+        # TODO better parse params
+        params = node.children[1].children.map { |n| Model::Param.new(n.children.first) } if node.children[1]
+        @stack.last.method_defs << Model::MethodDef.new(@stack.last, name, params)
       end
 
       def visit_defs(node)
-        puts node
-
-        # Parse recv
-        recv_node = node.children.first
         recv = nil
+        recv_node = node.children.first
         if not recv_node.nil?
           # We have a receiver.
           #
@@ -82,16 +79,42 @@ module RSAF
           # Here, `::A::B` is the receiver and `C` the constant to be defined.
           recv = visit_name(recv_node)
         end
-
-        # Parse def args
-        args = []
-        # node.children[2].children.each do |n|
-          # args << RSAF::Model::RArg.new(n, n.children.first)
-        # end
-
         name = node.children[1]
-        @stack.last.singleton_method_defs << Model::SingletonMethodDef.new(@stack.last, name, args, recv)
+        # TODO better parse params
+        params = node.children[2].children.map { |n| Model::Param.new(n.children.first) } if node.children[2]
+        @stack.last.singleton_method_defs << Model::SingletonMethodDef.new(@stack.last, name, params, recv)
       end
+
+      def visit_const_assign(node)
+        name = node.children[1]
+        @stack.last.const_defs << Model::ConstDef.new(@stack.last, name)
+      end
+
+      def visit_send(node)
+        case node.children[1]
+        when :attr_reader, :attr_writer, :attr_accessor
+          visit_attr(node)
+        when :include, :prepend,  :extend
+          visit_include(node)
+        end
+      end
+
+      def visit_attr(node)
+        kind = node.children[1]
+
+        node.children[2..-1].each do |child|
+          name = child.children.first
+          @stack.last.attrs << Model::AttrDef.new(@stack.last, name, kind)
+        end
+      end
+
+      def visit_include(node)
+        name = visit_name(node.children[2])
+        kind = node.children[1]
+        @stack.last.includes << Model::Include.new(name, kind)
+      end
+
+      # Utils
 
       def visit_name(node)
         v = ScopeNameVisitor.new
