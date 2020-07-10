@@ -8,3 +8,7 @@ up:
 
 commands:
   test:      "bin/test"
+  typecheck:
+    aliases: [ "tc" ]
+    run:     "bin/typecheck"
+  style:     "bin/style"
