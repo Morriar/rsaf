@@ -20,6 +20,13 @@ module RSAF
         visit(object)
       end
 
+      # Internals (but not private)
+
+      def colorize(string, color)
+        return string unless @colors
+        string.colorize(color)
+      end
+
       def indent
         @current_indent += 2
       end
@@ -81,7 +88,7 @@ module RSAF
 
     class Class
       def accept_printer(v)
-        v.printt "class #{name}"
+        v.printt "class #{qname}"
         # TODO v.print " < #{superclass_name}" if superclass_name
         v.printn
         if v.print_defs
@@ -103,35 +110,74 @@ module RSAF
         end
       end
     end
+
+    class Attr
+      def accept_printer(v)
+        v.printl "#{kind} #{name}"
+        if v.print_defs
+          v.indent
+          v.visit_all(defs)
+          v.dedent
+        end
+      end
+    end
+
+    class Const
+      def accept_printer(v)
+        v.printl name
+        if v.print_defs
+          v.indent
+          v.visit_all(defs)
+          v.dedent
+        end
+      end
+    end
+
+    class Method
+      def accept_printer(v)
+        v.printl "def #{is_singleton ? "self." : ""}#{name}"
+        if v.print_defs
+          v.indent
+          v.visit_all(defs)
+          v.dedent
+        end
+      end
+    end
+
+    # Defs
+
     class ModuleDef
       def accept_printer(v)
-        v.printl "module_def #{name}".light_black
+        v.printl v.colorize("defined at #{loc}", :light_black)
       end
     end
 
     class ClassDef
       def accept_printer(v)
-        v.printl "class_def #{name}".light_black
+        v.printl v.colorize("defined at #{loc}", :light_black)
       end
     end
 
     class AttrDef
       def accept_printer(v)
-        v.printl "#{kind} #{name}".light_black
+        v.printl v.colorize("defined at #{loc}", :light_black)
       end
     end
 
     class ConstDef
       def accept_printer(v)
-        v.printl name.light_black
+        v.printl v.colorize("defined at #{loc}", :light_black)
       end
     end
 
     class MethodDef
       def accept_printer(v)
-        v.printt "def #{name}".light_black
-        v.print "(#{params.map(&:name).join(", ")})".light_black unless params.empty?
+        v.printl v.colorize("defined at #{loc}", :light_black)
+        v.indent
+        v.printt v.colorize("signature: #{name}", :light_black)
+        v.print v.colorize("(#{params.map(&:name).join(", ")})", :light_black) unless params.empty?
         v.printn
+        v.dedent
       end
     end
   end

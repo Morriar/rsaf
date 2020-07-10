@@ -6,10 +6,19 @@ module RSAF
       @logger = Logger.new(colors: config.colors)
     end
 
-    def modelize(*trees)
+    def compile(*files)
       model = Model.new
-      builder = ModelBuilder.new(model)
-      builder.build(*trees)
+      files.each do |file|
+        tree = parse_file(file)
+        Phases::BuildScopes.run(model, file, tree)
+      end
+      model
+    end
+
+    def compile_code(code)
+      model = Model.new
+      tree = parse_string(code)
+      Phases::BuildScopes.run(model, nil, tree)
       model
     end
 
@@ -19,10 +28,6 @@ module RSAF
 
     def parse_file(file)
       Parser.parse_file(file)
-    end
-
-    def parse_files(*files)
-      files.map { |file| parse_file(file) }
     end
 
     def list_files(*paths)

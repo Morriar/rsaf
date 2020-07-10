@@ -1,13 +1,14 @@
 module RSAF
   class Model
     # TODO scope_defs?
-    attr_reader :root, :modules, :classes, :module_defs, :class_defs
+    attr_reader :root, :modules, :classes, :properties, :module_defs, :class_defs
 
     def initialize
       @modules = {}
       @classes = {}
-      @root = make_root
-      @module_defs = []
+      @properties = {}
+      @root = make_root # TODO move to builder?
+      @module_defs = [] # TODO remove
       @class_defs = []
     end
 
@@ -19,22 +20,26 @@ module RSAF
       @classes[klass.qname] = klass
     end
 
+    # TODO remove
     def add_module_def(mdef)
       @module_defs << mdef
     end
 
+    # TODO remove
     def add_class_def(cdef)
       @class_defs << cdef
     end
 
+    # TODO remove
     def entries
       [*module_defs, *class_defs]
     end
 
     private
 
+    # TODO move to builder?
     def make_root
-      root = Model::Module.new(nil, "<root>")
+      root = Model::Module.new(nil, "<root>", "<root>")
       add_module(root)
       root
     end
@@ -53,10 +58,7 @@ module RSAF
     class Scope < Entity
       attr_reader :parent, :children, :defs, :consts, :methods
 
-      def initialize(parent, name)
-        qname = "::#{name}"
-        qname = "#{parent.qname}#{qname}" if parent && !parent.root?
-        qname = "<root>" unless parent # TODO remove after printer?
+      def initialize(parent, name, qname)
         super(name, qname)
         @parent = parent
         @children = []
@@ -74,6 +76,12 @@ module RSAF
       def to_s
         qname
       end
+
+      def self.qualify_name(parent, name)
+        return "<root>" if !parent && name == "<root>" # TODO yakk..
+        return "#{parent.qname}::#{name}" if parent && !parent.root?
+        "::#{name}"
+      end
     end
 
     class Module < Scope
@@ -82,51 +90,72 @@ module RSAF
     class Class < Scope
       attr_reader :attrs
 
-      def initialize(parent, name)
-        super(parent, name)
+      def initialize(parent, name, qname)
+        super(parent, name, qname)
         @attrs = []
       end
     end
 
     class Property < Entity
-      attr_reader :scope
+      attr_reader :scope, :defs
 
       def initialize(scope, name, qname)
         super(name, qname)
         @scope = scope
+        @defs = []
       end
     end
 
     class Attr < Property
       attr_reader :kind
 
-      def initialize(scope, name, kind)
-        super(scope, name, "#{scope ? scope.qname : ""}##{name}")
+      def initialize(scope, name, qname, kind)
+        super(scope, name, qname)
         @kind = kind
+        scope.attrs << self
+      end
+
+      def self.qualify_name(scope, name)
+        return "@#{name}" unless scope
+        "#{scope.qname}@#{name}"
       end
     end
 
     class Const < Property
-      def initialize(scope, name)
-        super(scope, name, "#{scope ? scope.qname : ""}::#{name}")
+      def initialize(scope, name, qname)
+        super(scope, name, qname)
+        scope.consts << self
+      end
+
+      def self.qualify_name(scope, name)
+        return "::#{name}" unless scope
+        "#{scope.qname}::#{name}"
       end
     end
 
     class Method < Property
-      attr_reader :params, :is_singleton
+      attr_reader :is_singleton, :params
 
-      def initialize(scope, name, is_singleton)
-        super(scope, name, "#{scope ? scope.qname : ""}##{name}")
+      def initialize(scope, name, qname, is_singleton)
+        super(scope, name, qname)
         @is_singleton = is_singleton
+        scope.methods << self
+      end
+
+      def self.qualify_name(scope, name, is_singleton)
+        label = is_singleton ? "::" : "#"
+        return "#{label}#{name}" unless scope
+        "#{scope.qname}#{label}#{name}"
       end
     end
 
     # Definitions
 
     class ScopeDef
-      attr_reader :scope, :consts, :includes, :methods
+      attr_reader :loc, :scope, :consts, :includes, :methods
 
-      def initialize(scope)
+      def initialize(loc, scope)
+        @loc = loc
         @scope = scope
         @consts = []
         @includes = []
@@ -153,19 +182,21 @@ module RSAF
     class ClassDef < ScopeDef
       attr_reader :superclass_name, :attrs
 
-      def initialize(scope, superclass_name = nil)
-        super(scope)
+      def initialize(loc, scope, superclass_name = nil)
+        super(loc, scope)
         @superclass_name = superclass_name
         @attrs = []
       end
     end
 
     class PropertyDef
-      attr_reader :scope_def, :property
+      attr_reader :loc, :scope_def, :property
 
-      def initialize(scope_def, property)
+      def initialize(loc, scope_def, property)
+        @loc = loc
         @scope_def = scope_def
         @property = property
+        property.defs << self
       end
 
       def name
@@ -176,16 +207,16 @@ module RSAF
     class AttrDef < PropertyDef
       attr_reader :kind
 
-      def initialize(scope_def, property, kind)
-        super(scope_def, property)
+      def initialize(loc, scope_def, property, kind)
+        super(loc, scope_def, property)
         @kind = kind
         scope_def.attrs << self
       end
     end
 
     class ConstDef < PropertyDef
-      def initialize(scope_def, property)
-        super(scope_def, property)
+      def initialize(loc, scope_def, property)
+        super(loc, scope_def, property)
         scope_def.consts << self
       end
     end
@@ -193,8 +224,8 @@ module RSAF
     class MethodDef < PropertyDef
       attr_reader :is_singleton, :params
 
-      def initialize(scope_def, property, is_singleton, params)
-        super(scope_def, property)
+      def initialize(loc, scope_def, property, is_singleton, params)
+        super(loc, scope_def, property)
         @is_singleton = is_singleton
         @params = params
         scope_def.methods << self

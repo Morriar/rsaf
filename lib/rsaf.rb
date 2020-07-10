@@ -1,8 +1,8 @@
 require_relative 'rsaf/compiler'
 require_relative 'rsaf/config'
+require_relative 'rsaf/location'
 require_relative 'rsaf/logger'
 require_relative 'rsaf/model'
-require_relative 'rsaf/modelbuilder'
 require_relative 'rsaf/model_printer'
 require_relative 'rsaf/parser'
 require_relative 'rsaf/phases/build_scopes'
@@ -47,9 +47,8 @@ module RSAF
       config = Config.new(colors: options.colors) # TODO option
       compiler = Compiler.new(config)
       files = compiler.list_files(*options.args)
-      trees = compiler.parse_files(*files)
-      model = compiler.modelize(*trees)
-      Model::ModelPrinter.new.print_model(model)
+      model = compiler.compile(*files)
+      Model::ModelPrinter.new(colors: false).print_model(model)
     end
 
     def self.exit_on_failure?

@@ -1,44 +1,34 @@
 require_relative "../../test_helper"
 
-# TODO use a model printer
-
 module RSAF
   module Phases
     class BuildScopeDefsTest < Minitest::Test
-      # Scope defs
-
-      def test_build_scope_defs_empty
-        model = compile("")
-        assert_equal(1, model.entries.size)
-        assert_equal("<root>", model.entries.first.name)
+      def test_build_scopes_empty
+        assert_equal(<<~EXP, compile(""))
+          module <root>
+            defined at :0:0
+        EXP
       end
 
-      def test_build_scope_defs_simple
-        model = compile(<<~RB)
+      def test_build_scopes_simple
+        rb = <<~RB
           module A; end
 
-          class B
+          class A::B
           end
         RB
-
-        assert_equal(["::A", "::B", "<root>"], names(model.entries))
-        assert_equal(["::A", "<root>"], names(model.module_defs))
-        assert_equal(["::B"], names(model.class_defs))
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            module ::A
+              defined at :1:0-1:13
+            class ::A::B
+              defined at :3:0-4:3
+        EXP
       end
 
-      def test_build_scope_defs_qualified
-        model = compile(<<~RB)
-          module A::A
-          end
-
-          class B::B; end
-        RB
-
-        assert_equal(["::A::A", "::B::B", "<root>"], names(model.entries))
-      end
-
-      def test_build_scope_defs_nested
-        model = compile(<<~RB)
+      def test_build_scope_nested
+        rb = <<~RB
           module A
             module B
               class C; end
@@ -49,14 +39,24 @@ module RSAF
             module E; end
           end
         RB
-
-        assert_equal(["::A", "::A::B", "::A::B::C", "::D", "::D::E", "<root>"], names(model.entries))
-        assert_equal(["::A", "::A::B", "::D::E", "<root>"], names(model.module_defs))
-        assert_equal(["::A::B::C", "::D"], names(model.class_defs))
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            module ::A
+              defined at :1:0-5:3
+              module ::A::B
+                defined at :2:2-4:5
+                class ::A::B::C
+                  defined at :3:4-3:16
+            class ::D
+              defined at :7:0-9:3
+              module ::D::E
+                defined at :8:2-8:15
+        EXP
       end
 
-      def test_build_scope_defs_mixed
-        model = compile(<<~RB)
+      def test_build_scope_mixed
+        rb = <<~RB
           module A
             module B::C
               class D; end
@@ -67,14 +67,24 @@ module RSAF
             module F::G; end
           end
         RB
-
-        assert_equal(["::A", "::A::B::C", "::A::B::C::D", "::D::E", "::D::E::F::G", "<root>"], names(model.entries))
-        assert_equal(["::A", "::A::B::C", "::D::E::F::G", "<root>"], names(model.module_defs))
-        assert_equal(["::A::B::C::D", "::D::E"], names(model.class_defs))
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            module ::A
+              defined at :1:0-5:3
+              module ::A::B::C
+                defined at :2:2-4:5
+                class ::A::B::C::D
+                  defined at :3:4-3:16
+            class ::D::E
+              defined at :7:0-9:3
+              module ::D::E::F::G
+                defined at :8:2-8:18
+        EXP
       end
 
-      def test_build_scope_defs_reopened
-        model = compile(<<~RB)
+      def test_build_scope_reopened
+        rb = <<~RB
           module A
             module B::C
               class D; end
@@ -86,144 +96,27 @@ module RSAF
             class F::G; end
           end
         RB
-
-        assert_equal(["::A", "::A", "::A::B::C", "::A::B::C::D", "::A::B::C::D::E", "::A::F::G", "<root>"], names(model.entries))
-        assert_equal(["::A", "::A", "::A::B::C", "::A::B::C::D::E", "<root>"], names(model.module_defs))
-        assert_equal(["::A::B::C::D", "::A::F::G"], names(model.class_defs))
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            module ::A
+              defined at :1:0-5:3
+              defined at :7:0-10:3
+              module ::A::B::C
+                defined at :2:2-4:5
+                class ::A::B::C::D
+                  defined at :3:4-3:16
+              module ::A::B::C::D::E
+                defined at :8:2-8:24
+              class ::A::F::G
+                defined at :9:2-9:17
+        EXP
       end
 
-      def test_build_scope_defs_superclass_simple
-        model = compile(<<~RB)
-          class A; end
-          class B < A; end
-        RB
+      # Inheritance
 
-        classes = model.class_defs.sort_by(&:name)
-        assert_equal(["::A", "::B"], names(classes))
-        assert_nil(classes.first.superclass_name)
-        assert_equal("A", classes.last.superclass_name)
-      end
-
-      def test_build_scope_defs_superclass_nested
-        model = compile(<<~RB)
-          class A
-            class B < A; end
-          end
-        RB
-
-        classes = model.class_defs.sort_by(&:name)
-        assert_equal(["::A", "::A::B"], names(classes))
-        assert_nil(classes.first.superclass_name)
-        assert_equal("A", classes.last.superclass_name)
-      end
-
-      def test_build_scope_defs_defs
-        model = compile(<<~RB)
-          def root; end
-
-          module A
-            def a; end
-            module B
-              class C; end
-              def b; end
-            end
-            def z; end
-          end
-        RB
-
-        entries = model.entries.sort_by(&:qname)
-        assert_equal(["::A", "::A::B", "::A::B::C", "<root>"], names(entries))
-        assert_equal(:a, entries[0].methods[0].name)
-        assert_equal(:z, entries[0].methods[1].name)
-        assert_equal(:b, entries[1].methods[0].name)
-        assert_empty(entries[2].methods)
-        assert_equal(:root, entries[3].methods[0].name)
-      end
-
-      def test_build_scope_defs_sdefs
-        model = compile(<<~RB)
-          def self.root; end
-
-          module A
-            def self.a; end
-            module B
-              class C; end
-              def self.b; end
-            end
-            def self.z; end
-          end
-        RB
-
-        entries = model.entries.sort_by(&:qname)
-        assert_equal(:a, entries[0].methods[0].name)
-        assert_equal(:z, entries[0].methods[1].name)
-        assert_equal(:b, entries[1].methods[0].name)
-        assert_empty(entries[2].methods)
-        assert_equal(:root, entries[3].methods[0].name)
-      end
-
-      def test_build_scope_defs_def_params
-        model = compile(<<~RB)
-          def f0; end
-          def f1(); end
-          def f2(a, b, c); end
-          def f3(a = 1, *b, c:); end
-          def f4(&blk); end
-        RB
-
-        root = model.entries.first
-        assert_empty(root.methods[0].params)
-        assert_empty(root.methods[1].params)
-        assert_equal([:a, :b, :c], root.methods[2].params.map(&:name))
-        assert_equal([:a, :b, :c], root.methods[3].params.map(&:name))
-        assert_equal(:blk, root.methods[4].params.first.name)
-      end
-
-      def test_build_scope_defs_consts
-        model = compile(<<~RB)
-          ROOT = 1
-
-          module A
-            A = 1
-            module B
-              class C; end
-              C = 1
-            end
-            B = 1
-          end
-        RB
-
-        entries = model.entries.sort_by(&:qname)
-        assert_equal(["::A", "::A::B", "::A::B::C", "<root>"], names(entries))
-        assert_equal(:A, entries[0].consts[0].name)
-        assert_equal(:B, entries[0].consts[1].name)
-        assert_equal(:C, entries[1].consts[0].name)
-        assert_empty(entries[2].consts)
-        assert_equal(:ROOT, entries[3].consts[0].name)
-      end
-
-      def test_build_scope_defs_attrs
-        model = compile(<<~RB)
-          class A; end
-
-          class B
-            attr_reader :a
-            attr_writer :b, :c
-            attr_accessor :d, :e
-          end
-        RB
-
-        entries = model.entries.sort_by(&:qname)
-        assert_equal(["::A", "::B", "<root>"], names(entries))
-        assert_empty(entries[0].attrs)
-        assert_equal([:a, :b, :c, :d, :e], entries[1].attrs.map(&:name))
-        assert_equal(:attr_reader, entries[1].attrs[0].kind)
-        assert_equal(:attr_writer, entries[1].attrs[1].kind)
-        assert_equal(:attr_accessor, entries[1].attrs[4].kind)
-      end
-
-      def test_build_scope_defs_includes
-        model = compile(<<~RB)
+      def test_build_scopes_includes
+        rb = <<~RB
           module A; end
 
           module B
@@ -238,82 +131,228 @@ module RSAF
             extend A
           end
         RB
-
-        entries = model.entries.sort_by(&:qname)
-        assert_equal(["::A", "::B", "::C", "<root>"], names(entries))
-        assert_empty(entries[0].includes)
-        assert_equal(["A", "A", "A"], entries[1].includes.map(&:name))
-        assert_equal(["A", "A", "A"], entries[2].includes.map(&:name))
-        assert_equal(:include, entries[1].includes[0].kind)
-        assert_equal(:prepend, entries[1].includes[1].kind)
-        assert_equal(:extend, entries[1].includes[2].kind)
+        # TODO
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            module ::A
+              defined at :1:0-1:13
+            module ::B
+              defined at :3:0-7:3
+            class ::C
+              defined at :9:0-13:3
+        EXP
       end
 
-      # Scopes
-
-      def test_build_scopes_empty
-        model = compile("")
-        assert_equal(1, model.modules.size) # <root>
-        assert_empty(model.classes)
+      def test_build_scope_superclass_simple
+        rb = <<~RB
+          class A; end
+          class B < A; end
+        RB
+        # TODO
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            class ::A
+              defined at :1:0-1:12
+            class ::B
+              defined at :2:0-2:16
+        EXP
       end
 
-      def test_build_scopes_simple
-        model = compile(<<~RB)
-          module A; end
+      def test_build_scope_defs_superclass_nested
+        rb = <<~RB
+          class A
+            class B < A; end
+          end
+        RB
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            class ::A
+              defined at :1:0-3:3
+              class ::A::B
+                defined at :2:2-2:18
+        EXP
+      end
+
+      # Properties
+
+      def test_build_scopes_attrs
+        rb = <<~RB
+          class A; end
 
           class B
+            attr_reader :a
+            attr_writer :b, :c
+            attr_accessor :d, :e
           end
         RB
-
-        assert_equal(["::A", "<root>"], names(model.modules.values))
-        assert_equal(["::B"], names(model.classes.values))
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            class ::A
+              defined at :1:0-1:12
+            class ::B
+              defined at :3:0-7:3
+              attr_reader a
+                defined at :4:2-4:16
+              attr_writer b
+                defined at :5:2-5:20
+              attr_writer c
+                defined at :5:2-5:20
+              attr_accessor d
+                defined at :6:2-6:22
+              attr_accessor e
+                defined at :6:2-6:22
+        EXP
       end
 
-      def test_build_scopes_mixed
-        model = compile(<<~RB)
+      def test_build_scopes_consts
+        rb = <<~RB
+          ROOT = 1
+
           module A
-            module B::C
-              class D; end
+            A = 1
+            module B
+              class C; end
+              C = 1
             end
-          end
-
-          class D::E
-            module F::G; end
+            B = 1
           end
         RB
-
-        assert_equal(["::A", "::A::B::C", "::D::E::F::G", "<root>"], names(model.modules.values))
-        assert_equal(["::A::B::C::D", "::D::E"], names(model.classes.values))
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            ROOT
+              defined at :1:0-1:8
+            module ::A
+              defined at :3:0-10:3
+              A
+                defined at :4:2-4:7
+              B
+                defined at :9:2-9:7
+              module ::A::B
+                defined at :5:2-8:5
+                C
+                  defined at :7:4-7:9
+                class ::A::B::C
+                  defined at :6:4-6:16
+        EXP
       end
 
-      def test_build_scopes_reopened
-        model = compile(<<~RB)
+      def test_build_scopes_methods
+        rb = <<~RB
+          def root; end
+
           module A
-            module B::C
-              class D; end
+            def a; end
+            module B
+              class C; end
+              def b; end
             end
-          end
-
-          module A
-            module B::C::D::E; end
-            class F::G; end
+            def z; end
           end
         RB
-
-        assert_equal(["::A", "::A::B::C", "::A::B::C::D::E", "<root>"], names(model.modules.values))
-        assert_equal(["::A::B::C::D", "::A::F::G"], names(model.classes.values))
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            def root
+              defined at :1:0-1:13
+                signature: root
+            module ::A
+              defined at :3:0-10:3
+              def a
+                defined at :4:2-4:12
+                  signature: a
+              def z
+                defined at :9:2-9:12
+                  signature: z
+              module ::A::B
+                defined at :5:2-8:5
+                def b
+                  defined at :7:4-7:14
+                    signature: b
+                class ::A::B::C
+                  defined at :6:4-6:16
+        EXP
       end
 
+      def test_build_scope_methods_singleton
+        rb = <<~RB
+          def self.root; end
+
+          module A
+            def self.a; end
+            module B
+              class C; end
+              def self.b; end
+            end
+            def self.z; end
+          end
+        RB
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            def self.root
+              defined at :1:0-1:18
+                signature: root
+            module ::A
+              defined at :3:0-10:3
+              def self.a
+                defined at :4:2-4:17
+                  signature: a
+              def self.z
+                defined at :9:2-9:17
+                  signature: z
+              module ::A::B
+                defined at :5:2-8:5
+                def self.b
+                  defined at :7:4-7:19
+                    signature: b
+                class ::A::B::C
+                  defined at :6:4-6:16
+        EXP
+      end
+
+      def test_build_scopes_method_params
+        rb = <<~RB
+          def f0; end
+          def f1(); end
+          def f2(a, b, c); end
+          def f3(a = 1, *b, c:); end
+          def f4(&blk); end
+        RB
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            def f0
+              defined at :1:0-1:11
+                signature: f0
+            def f1
+              defined at :2:0-2:13
+                signature: f1
+            def f2
+              defined at :3:0-3:20
+                signature: f2(a, b, c)
+            def f3
+              defined at :4:0-4:26
+                signature: f3(a, b, c)
+            def f4
+              defined at :5:0-5:17
+                signature: f4(blk)
+        EXP
+      end
 
       private
 
       def compile(code)
-        model = Model.new
         config = Config.new(colors: false)
         compiler = Compiler.new(config)
-        tree = compiler.parse_string(code)
-        Phases::BuildScopes.new(model).visit(tree)
-        model
+        model = compiler.compile_code(code)
+        out = StringIO.new
+        Model::ModelPrinter.new(colors: false, out: out).print_model(model)
+        out.string
       end
 
       def names(array)

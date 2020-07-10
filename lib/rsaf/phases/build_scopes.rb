@@ -1,8 +1,14 @@
 module RSAF
   module Phases
     class BuildScopes
-      def initialize(model)
+      def self.run(model, file, node)
+        phase = BuildScopes.new(model, file)
+        phase.visit(node)
+      end
+
+      def initialize(model, file)
         @model = model
+        @file = file
         @stack = [ make_root_def ]
       end
 
@@ -34,21 +40,26 @@ module RSAF
       private
 
       def make_root_def
-        root_def = Model::ModuleDef.new(@model.root)
+        root_def = Model::ModuleDef.new(Location.new(@file, Position.new(0, 0)), @model.root)
         @model.add_module_def(root_def)
         root_def
       end
 
-      def visit_module(node)
-        name = visit_name(node.children.first)
+      # Scopes
 
-        mod = @model.modules["#{@stack.last.qname}::#{name}"]
+      def visit_module(node)
+        last = @stack.last
+        name = visit_name(node.children.first)
+        qname = Model::Scope.qualify_name(last.scope, name)
+
+        mod = @model.modules[qname]
         unless mod
-          mod = Model::Module.new(@stack.last.scope, name)
+          mod = Model::Module.new(last.scope, name, qname)
           @model.add_module(mod)
         end
 
-        mod_def = Model::ModuleDef.new(mod)
+        loc = Location.from_node(@file, node)
+        mod_def = Model::ModuleDef.new(loc, mod)
         @model.add_module_def mod_def
 
         @stack << mod_def
@@ -57,16 +68,19 @@ module RSAF
       end
 
       def visit_class(node)
+        last = @stack.last
         name = visit_name(node.children.first)
+        qname = Model::Scope.qualify_name(last.scope, name)
 
-        klass = @model.classes["#{@stack.last.qname}::#{name}"]
+        klass = @model.classes[qname]
         unless klass
-          klass = Model::Class.new(@stack.last.scope, name)
+          klass = Model::Class.new(last.scope, name, qname)
           @model.add_class(klass)
         end
 
+        loc = Location.from_node(@file, node)
         superclass = visit_name(node.children[1]) if node.children[1]
-        class_def = Model::ClassDef.new(klass, superclass)
+        class_def = Model::ClassDef.new(loc, klass, superclass)
         @model.add_class_def class_def
 
         @stack << class_def
@@ -74,41 +88,67 @@ module RSAF
         @stack.pop
       end
 
-      def visit_def(node)
-        name = node.children.first
+      # Properties
 
-        prop = @model.classes["#{@stack.last.qname}##{name}"]
-        unless prop
-          prop = Model::Method.new(@stack.last.scope, name, [])
+      def visit_attr(node)
+        last = @stack.last
+        kind = node.children[1]
+
+        node.children[2..-1].each do |child|
+          name = child.children.first.to_s
+          qname = Model::Attr.qualify_name(last.scope, name)
+
+          prop = @model.properties[qname]
+          unless prop
+            prop = Model::Attr.new(last.scope, name, qname, kind)
+          end
+          loc = Location.from_node(@file, node)
+          Model::AttrDef.new(loc, last, prop, kind)
         end
-
-        # TODO better parse params
-        params = node.children[1].children.map { |n| Model::Param.new(n.children.first) } if node.children[1]
-        Model::MethodDef.new(@stack.last, prop, false, params)
-      end
-
-      def visit_defs(node)
-        name = node.children[1]
-
-        prop = @model.classes["#{@stack.last.qname}::#{name}"]
-        unless prop
-          prop = Model::Method.new(@stack.last.scope, name, [])
-        end
-
-        # TODO better parse params
-        params = node.children[2].children.map { |n| Model::Param.new(n.children.first) } if node.children[2]
-        Model::MethodDef.new(@stack.last, prop, true, params)
       end
 
       def visit_const_assign(node)
-        name = node.children[1]
+        last = @stack.last
+        name = node.children[1].to_s
+        qname = Model::Const.qualify_name(last.scope, name)
 
-        prop = @model.classes["#{@stack.last.qname}##{name}"]
+        prop = @model.properties[qname]
         unless prop
-          prop = Model::Const.new(@stack.last.scope, name)
+          prop = Model::Const.new(last.scope, name, qname)
         end
 
-        Model::ConstDef.new(@stack.last, prop)
+        loc = Location.from_node(@file, node)
+        Model::ConstDef.new(loc, last, prop)
+      end
+
+      def visit_def(node)
+        last = @stack.last
+        name = node.children.first
+        qname = Model::Method.qualify_name(last.scope, name, false)
+
+        prop = @model.properties[qname]
+        unless prop
+          prop = Model::Method.new(last.scope, name, qname, false)
+        end
+
+        loc = Location.from_node(@file, node)
+        params = node.children[1].children.map { |n| Model::Param.new(n.children.first) } if node.children[1]
+        Model::MethodDef.new(loc, last, prop, false, params)
+      end
+
+      def visit_defs(node)
+        last = @stack.last
+        name = node.children[1]
+        qname = Model::Method.qualify_name(last.scope, name, true)
+
+        prop = @model.properties[qname]
+        unless prop
+          prop = Model::Method.new(last.scope, name, qname, true)
+        end
+
+        loc = Location.from_node(@file, node)
+        params = node.children[2].children.map { |n| Model::Param.new(n.children.first) } if node.children[2]
+        Model::MethodDef.new(loc, last, prop, true, params)
       end
 
       def visit_send(node)
@@ -117,20 +157,6 @@ module RSAF
           visit_attr(node)
         when :include, :prepend,  :extend
           visit_include(node)
-        end
-      end
-
-      def visit_attr(node)
-        kind = node.children[1]
-
-        node.children[2..-1].each do |child|
-          name = child.children.first
-
-          prop = @model.classes["#{@stack.last.qname}##{name}"]
-          unless prop
-            prop = Model::Attr.new(@stack.last.scope, name, kind)
-          end
-          Model::AttrDef.new(@stack.last, prop, kind)
         end
       end
 
@@ -147,6 +173,10 @@ module RSAF
         v.visit(node)
         v.names.join("::")
       end
+
+      def current_namespace
+        @stack.last.qname
+      end
     end
 
     class ScopeNameVisitor
@@ -161,6 +191,13 @@ module RSAF
         node.children.each { |child| visit(child) }
         names << node.location.name.source if node.type == :const
       end
+    end
+  end
+
+  class Location
+    def self.from_node(file, node)
+      loc = node.location
+      Location.new(file, Range.new(Position.new(loc.line, loc.column), Position.new(loc.last_line, loc.last_column)))
     end
   end
 end
