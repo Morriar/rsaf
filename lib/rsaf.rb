@@ -3,8 +3,9 @@ require_relative 'rsaf/config'
 require_relative 'rsaf/logger'
 require_relative 'rsaf/model'
 require_relative 'rsaf/modelbuilder'
-require_relative 'rsaf/modelize/build_scope_defs'
+require_relative 'rsaf/model_printer'
 require_relative 'rsaf/parser'
+require_relative 'rsaf/phases/build_scopes'
 
 require 'optparse'
 
@@ -48,8 +49,7 @@ module RSAF
       files = compiler.list_files(*options.args)
       trees = compiler.parse_files(*files)
       model = compiler.modelize(*trees)
-      puts model.modules
-      puts model.classes
+      Model::ModelPrinter.new.print_model(model)
     end
 
     def self.exit_on_failure?
