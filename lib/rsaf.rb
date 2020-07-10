@@ -6,6 +6,7 @@ require_relative 'rsaf/model'
 require_relative 'rsaf/model_printer'
 require_relative 'rsaf/parser'
 require_relative 'rsaf/phases/build_scopes'
+require_relative 'rsaf/phases/build_inheritance'
 
 require 'optparse'
 
@@ -48,7 +49,7 @@ module RSAF
       compiler = Compiler.new(config)
       files = compiler.list_files(*options.args)
       model = compiler.compile(*files)
-      Model::ModelPrinter.new(colors: false).print_model(model)
+      # Model::ModelPrinter.new(colors: options.colors).print_model(model)
     end
 
     def self.exit_on_failure?

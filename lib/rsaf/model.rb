@@ -1,38 +1,39 @@
 module RSAF
   class Model
-    # TODO scope_defs?
-    attr_reader :root, :modules, :classes, :properties, :module_defs, :class_defs
+    attr_reader :root, :scopes, :properties
 
     def initialize
-      @modules = {}
-      @classes = {}
+      @scopes = {}
       @properties = {}
       @root = make_root # TODO move to builder?
-      @module_defs = [] # TODO remove
-      @class_defs = []
     end
 
     def add_module(mod)
-      @modules[mod.qname] = mod
+      @scopes[mod.qname] = mod
     end
 
     def add_class(klass)
-      @classes[klass.qname] = klass
+      @scopes[klass.qname] = klass
     end
 
-    # TODO remove
-    def add_module_def(mdef)
-      @module_defs << mdef
+    def modules
+      @scopes.values.filter { |scope| scope.is_a?(Model::Module) }
     end
 
-    # TODO remove
-    def add_class_def(cdef)
-      @class_defs << cdef
+    def classes
+      @scopes.values.filter { |scope| scope.is_a?(Model::Class) }
     end
 
-    # TODO remove
-    def entries
-      [*module_defs, *class_defs]
+    def lookup_scope(name, scope = nil)
+      fully_qualified = /^::/.match?(name)
+      return @scopes[name] if fully_qualified
+      return @scopes.values.filter{ |s| s.name == name }.first unless scope
+
+      # TODO semi-qualified
+      # TODO lookup children
+      # TODO lookup parents
+
+      return @scopes.values.filter{ |s| s.name == name }.first
     end
 
     private
@@ -56,7 +57,7 @@ module RSAF
     end
 
     class Scope < Entity
-      attr_reader :parent, :children, :defs, :consts, :methods
+      attr_reader :parent, :children, :defs, :includes, :consts, :methods
 
       def initialize(parent, name, qname)
         super(name, qname)
@@ -84,11 +85,21 @@ module RSAF
       end
     end
 
+    class Include
+      attr_reader :mod, :kind
+
+      def initialize(mod, kind)
+        @mod = mod
+        @kind = kind
+      end
+    end
+
     class Module < Scope
     end
 
     class Class < Scope
       attr_reader :attrs
+      attr_accessor :superclass
 
       def initialize(parent, name, qname)
         super(parent, name, qname)
@@ -232,7 +243,7 @@ module RSAF
       end
     end
 
-    class Include
+    class IncludeDef
       attr_reader :scope_def, :kind, :name
 
       def initialize(scope_def, name, kind)
@@ -242,6 +253,8 @@ module RSAF
         scope_def.includes << self
       end
     end
+
+    # Misc
 
     class Param
       attr_reader :name

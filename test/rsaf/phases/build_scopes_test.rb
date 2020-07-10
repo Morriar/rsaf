@@ -131,7 +131,6 @@ module RSAF
             extend A
           end
         RB
-        # TODO
         assert_equal(<<~EXP, compile(rb))
           module <root>
             defined at :0:0
@@ -139,8 +138,14 @@ module RSAF
               defined at :1:0-1:13
             module ::B
               defined at :3:0-7:3
+              include ::A
+              prepend ::A
+              extend ::A
             class ::C
               defined at :9:0-13:3
+              include ::A
+              prepend ::A
+              extend ::A
         EXP
       end
 
@@ -149,13 +154,12 @@ module RSAF
           class A; end
           class B < A; end
         RB
-        # TODO
         assert_equal(<<~EXP, compile(rb))
           module <root>
             defined at :0:0
             class ::A
               defined at :1:0-1:12
-            class ::B
+            class ::B < ::A
               defined at :2:0-2:16
         EXP
       end
@@ -171,7 +175,7 @@ module RSAF
             defined at :0:0
             class ::A
               defined at :1:0-3:3
-              class ::A::B
+              class ::A::B < ::A
                 defined at :2:2-2:18
         EXP
       end

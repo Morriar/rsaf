@@ -10,16 +10,26 @@ module RSAF
       model = Model.new
       files.each do |file|
         tree = parse_file(file)
-        Phases::BuildScopes.run(model, file, tree)
+        run_local_phases(model, file, tree)
       end
+      run_global_phases(model)
       model
     end
 
     def compile_code(code)
       model = Model.new
       tree = parse_string(code)
-      Phases::BuildScopes.run(model, nil, tree)
+      run_local_phases(model, nil, tree)
+      run_global_phases(model)
       model
+    end
+
+    def run_local_phases(model, file, tree)
+      Phases::BuildScopes.run(model, file, tree)
+    end
+
+    def run_global_phases(model)
+      Phases::BuildInheritance.run(model)
     end
 
     def parse_string(string)

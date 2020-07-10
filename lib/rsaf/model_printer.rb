@@ -63,18 +63,19 @@ module RSAF
       end
     end
 
-    class Module
+    class Scope
       def accept_printer(v)
-        v.printl "module #{qname}"
         if v.print_defs
           v.indent
           v.visit_all(defs)
           v.dedent
         end
+        v.indent
+        v.visit_all(includes)
+        v.dedent
         if v.print_properties
           v.indent
-          v.visit_all(consts)
-          v.visit_all(methods)
+          print_properties(v)
           v.dedent
         end
         unless children.empty?
@@ -84,28 +85,40 @@ module RSAF
         end
         # TODO visit nesting
       end
+
+      def print_properties(v)
+        v.visit_all(consts)
+        v.visit_all(methods)
+      end
+    end
+
+    class Module
+      def accept_printer(v)
+        v.printl "module #{qname}"
+        super(v)
+      end
     end
 
     class Class
       def accept_printer(v)
         v.printt "class #{qname}"
-        # TODO v.print " < #{superclass_name}" if superclass_name
+        v.print " < #{superclass}" if superclass
         v.printn
+        super(v)
+      end
+
+      def print_properties(v)
+        v.visit_all(consts)
+        v.visit_all(attrs)
+        v.visit_all(methods)
+      end
+    end
+
+    class Property
+      def accept_printer(v)
         if v.print_defs
           v.indent
           v.visit_all(defs)
-          v.dedent
-        end
-        if v.print_properties
-          v.indent
-          v.visit_all(consts)
-          v.visit_all(attrs)
-          v.visit_all(methods)
-          v.dedent
-        end
-        unless children.empty?
-          v.indent
-          v.visit_all(children)
           v.dedent
         end
       end
@@ -114,57 +127,39 @@ module RSAF
     class Attr
       def accept_printer(v)
         v.printl "#{kind} #{name}"
-        if v.print_defs
-          v.indent
-          v.visit_all(defs)
-          v.dedent
-        end
+        super(v)
       end
     end
 
     class Const
       def accept_printer(v)
         v.printl name
-        if v.print_defs
-          v.indent
-          v.visit_all(defs)
-          v.dedent
-        end
+        super(v)
       end
     end
 
     class Method
       def accept_printer(v)
         v.printl "def #{is_singleton ? "self." : ""}#{name}"
-        if v.print_defs
-          v.indent
-          v.visit_all(defs)
-          v.dedent
-        end
+        super(v)
+      end
+    end
+
+    class Include
+      def accept_printer(v)
+        v.printl "#{kind} #{mod.qname}"
       end
     end
 
     # Defs
 
-    class ModuleDef
+    class ScopeDef
       def accept_printer(v)
         v.printl v.colorize("defined at #{loc}", :light_black)
       end
     end
 
-    class ClassDef
-      def accept_printer(v)
-        v.printl v.colorize("defined at #{loc}", :light_black)
-      end
-    end
-
-    class AttrDef
-      def accept_printer(v)
-        v.printl v.colorize("defined at #{loc}", :light_black)
-      end
-    end
-
-    class ConstDef
+    class PropertyDef
       def accept_printer(v)
         v.printl v.colorize("defined at #{loc}", :light_black)
       end
@@ -172,7 +167,7 @@ module RSAF
 
     class MethodDef
       def accept_printer(v)
-        v.printl v.colorize("defined at #{loc}", :light_black)
+        super(v)
         v.indent
         v.printt v.colorize("signature: #{name}", :light_black)
         v.print v.colorize("(#{params.map(&:name).join(", ")})", :light_black) unless params.empty?

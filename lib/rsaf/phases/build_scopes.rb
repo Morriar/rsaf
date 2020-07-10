@@ -40,9 +40,7 @@ module RSAF
       private
 
       def make_root_def
-        root_def = Model::ModuleDef.new(Location.new(@file, Position.new(0, 0)), @model.root)
-        @model.add_module_def(root_def)
-        root_def
+        Model::ModuleDef.new(Location.new(@file, Position.new(0, 0)), @model.root)
       end
 
       # Scopes
@@ -52,7 +50,7 @@ module RSAF
         name = visit_name(node.children.first)
         qname = Model::Scope.qualify_name(last.scope, name)
 
-        mod = @model.modules[qname]
+        mod = @model.scopes[qname]
         unless mod
           mod = Model::Module.new(last.scope, name, qname)
           @model.add_module(mod)
@@ -60,7 +58,6 @@ module RSAF
 
         loc = Location.from_node(@file, node)
         mod_def = Model::ModuleDef.new(loc, mod)
-        @model.add_module_def mod_def
 
         @stack << mod_def
         visit_all node.children
@@ -72,7 +69,7 @@ module RSAF
         name = visit_name(node.children.first)
         qname = Model::Scope.qualify_name(last.scope, name)
 
-        klass = @model.classes[qname]
+        klass = @model.scopes[qname]
         unless klass
           klass = Model::Class.new(last.scope, name, qname)
           @model.add_class(klass)
@@ -81,7 +78,6 @@ module RSAF
         loc = Location.from_node(@file, node)
         superclass = visit_name(node.children[1]) if node.children[1]
         class_def = Model::ClassDef.new(loc, klass, superclass)
-        @model.add_class_def class_def
 
         @stack << class_def
         visit_all node.children
@@ -163,7 +159,7 @@ module RSAF
       def visit_include(node)
         name = visit_name(node.children[2])
         kind = node.children[1]
-        Model::Include.new(@stack.last, name, kind)
+        Model::IncludeDef.new(@stack.last, name, kind)
       end
 
       # Utils
