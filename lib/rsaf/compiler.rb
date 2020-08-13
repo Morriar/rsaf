@@ -60,11 +60,17 @@ module RSAF
     sig { params(string: String).returns(T.nilable(AST::Node)) }
     def parse_string(string)
       Parser.parse_string(string)
+    rescue ::Parser::SyntaxError
+      # TODO
+      nil
     end
 
     sig { params(file: String).returns(T.nilable(AST::Node)) }
     def parse_file(file)
       Parser.parse_file(file)
+    rescue ::Parser::SyntaxError
+      # TODO
+      nil
     end
 
     sig { params(paths: String).returns(T::Array[String]) }
