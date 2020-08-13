@@ -32,6 +32,7 @@ module RSAF
             unless mod
               # TODO: print error
               puts "error can't find superclass `#{inc.name}` for `#{scope}`"
+              next
             end
             unless mod.is_a?(Model::Module)
               # TODO: print error
@@ -61,7 +62,12 @@ module RSAF
             puts "error can't find superclass `#{superclass_name}` for `#{klass}`"
             next
           end
-          klass.superclass = T.cast(parent, Model::Class)
+          unless parent.is_a?(Model::Class)
+            # TODO: print error
+            puts "error using module `#{parent.qname}` as superclass for `#{klass}`"
+            next
+          end
+          klass.superclass = parent
         end
       end
     end
