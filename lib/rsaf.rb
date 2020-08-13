@@ -1,6 +1,7 @@
 # typed: true
 # frozen_string_literal: true
 
+require "json"
 require 'thor'
 require 'sorbet-runtime'
 
@@ -13,6 +14,7 @@ require_relative 'rsaf/model_printer'
 require_relative 'rsaf/parser'
 require_relative 'rsaf/phases/build_scopes'
 require_relative 'rsaf/phases/build_inheritance'
+require_relative 'rsaf/treemap'
 
 module RSAF
   class CLI < Thor
@@ -27,6 +29,16 @@ module RSAF
       config = parse_config
       model = parse_files(*T.unsafe(files))
       Model::ModelPrinter.new(colors: config.colors).print_model(model)
+    end
+
+    desc "tree *FILES", "print files tree"
+    sig { params(files: String).void }
+    def print(*files)
+      # config = parse_config
+      model = parse_files(*T.unsafe(files))
+      Model::Treemap.new.print_model(model)
+
+      # TODO collect files and dirs
     end
 
     no_commands do
