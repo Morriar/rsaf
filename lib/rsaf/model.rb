@@ -330,11 +330,22 @@ module RSAF
       sig { returns(Property) }
       attr_reader :property
 
-      sig { params(loc: Location, scope_def: ScopeDef, property: Property).void }
-      def initialize(loc, scope_def, property)
+      sig { returns(T.nilable(Sig)) }
+      attr_reader :sorbet_sig
+
+      sig do
+        params(
+          loc: Location,
+          scope_def: ScopeDef,
+          property: Property,
+          sorbet_sig: T.nilable(Sig)
+        ).void
+      end
+      def initialize(loc, scope_def, property, sorbet_sig)
         @loc = loc
         @scope_def = scope_def
         @property = property
+        @sorbet_sig = sorbet_sig
         property.defs << self
       end
 
@@ -350,22 +361,18 @@ module RSAF
       sig { returns(Symbol) }
       attr_reader :kind
 
-      sig { returns(T.nilable(Sig)) }
-      attr_reader :sig
-
       sig do
         params(
           loc: Location,
           scope_def: ScopeDef,
           property: Property,
           kind: Symbol,
-          sig: T.nilable(Sig)
+          sorbet_sig: T.nilable(Sig)
         ).void
       end
-      def initialize(loc, scope_def, property, kind, sig)
-        super(loc, scope_def, property)
+      def initialize(loc, scope_def, property, kind, sorbet_sig)
+        super(loc, scope_def, property, sorbet_sig)
         @kind = kind
-        @sig = sig
         scope_def.attrs << self
       end
     end
@@ -373,9 +380,16 @@ module RSAF
     class ConstDef < PropertyDef
       extend T::Sig
 
-      sig { params(loc: Location, scope_def: ScopeDef, property: Property).void }
-      def initialize(loc, scope_def, property)
-        super(loc, scope_def, property)
+      sig do
+        params(
+          loc: Location,
+          scope_def: ScopeDef,
+          property: Property,
+          sorbet_sig: T.nilable(Sig)
+        ).void
+      end
+      def initialize(loc, scope_def, property, sorbet_sig)
+        super(loc, scope_def, property, sorbet_sig)
         scope_def.consts << self
       end
     end
@@ -389,9 +403,6 @@ module RSAF
       sig { returns(T::Array[Param]) }
       attr_reader :params
 
-      sig { returns(T.nilable(Sig)) }
-      attr_reader :sig
-
       sig do
         params(
           loc: Location,
@@ -399,14 +410,13 @@ module RSAF
           property: Property,
           is_singleton: T::Boolean,
           params: T::Array[Param],
-          sig: T.nilable(Sig)
+          sorbet_sig: T.nilable(Sig)
         ).void
       end
-      def initialize(loc, scope_def, property, is_singleton, params, sig)
-        super(loc, scope_def, property)
+      def initialize(loc, scope_def, property, is_singleton, params, sorbet_sig)
+        super(loc, scope_def, property, sorbet_sig)
         @is_singleton = is_singleton
         @params = params
-        @sig = sig
         scope_def.methods << self
       end
     end

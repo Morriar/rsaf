@@ -132,7 +132,7 @@ module RSAF
         end
 
         loc = Location.from_node(@file, node)
-        Model::ConstDef.new(loc, last, prop)
+        Model::ConstDef.new(loc, last, prop, nil)
         @last_sig = nil
       end
 

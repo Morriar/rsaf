@@ -233,7 +233,7 @@ module RSAF
         v.printt(v.colorize("signature: #{name}", :light_black))
         v.print(v.colorize("(#{params.map(&:name).join(', ')})", :light_black)) unless params.empty?
         v.printn
-        if sig
+        if sorbet_sig
           v.printt(v.colorize("sig: #{true}", :light_black))
           v.printn
         end
@@ -249,6 +249,13 @@ module RSAF
     end
 
     class Param
+      extend T::Sig
+
+      sig { override.params(v: Model::ModelPrinter).void }
+      def accept_printer(v); end
+    end
+
+    class Sig
       extend T::Sig
 
       sig { override.params(v: Model::ModelPrinter).void }
