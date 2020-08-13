@@ -1,4 +1,4 @@
-# typed: strict
+# typed: true
 # frozen_string_literal: true
 
 require 'thor'
@@ -18,27 +18,35 @@ module RSAF
   class CLI < Thor
     extend T::Sig
 
-    default_task :parse
-
     class_option :color, desc: "Use colors", type: :boolean, default: true
     class_option :timers, desc: "Display timers", type: :boolean, default: false
 
-    desc "run FILE *FILES", "parses files"
+    desc "print *FILES", "print model"
     sig { params(files: String).void }
-    def parse(*files)
-      if files.empty?
-        $stderr.puts "Error: no files given."
-        help
-        exit 1
-      end
-      config = Config.new(
-        colors: options[:color],
-        timers: options[:timers],
-      )
-      compiler = Compiler.new(config)
-      files = compiler.list_files(*T.unsafe(files))
-      model = compiler.compile(*files)
+    def print(*files)
+      config = parse_config
+      model = parse_files(*T.unsafe(files))
       Model::ModelPrinter.new(colors: config.colors).print_model(model)
+    end
+
+    no_commands do
+      def parse_config
+        @config ||= Config.new(
+          colors: options[:color],
+          timers: options[:timers],
+        )
+      end
+
+      def parse_files(*files)
+        if files.empty?
+          $stderr.puts "Error: no files given."
+          help
+          exit 1
+        end
+        compiler = Compiler.new(parse_config)
+        files = compiler.list_files(*T.unsafe(files))
+        compiler.compile(*files)
+      end
     end
 
     sig { returns(T::Boolean) }
