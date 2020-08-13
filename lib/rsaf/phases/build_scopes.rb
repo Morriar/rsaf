@@ -17,6 +17,7 @@ module RSAF
         @model = model
         @file = file
         @stack = T.let([make_root_def], T::Array[Model::ScopeDef])
+        @last_sig = T.let(nil, T.nilable(Model::Sig))
       end
 
       sig { params(node: T.nilable(Object)).void }
@@ -73,6 +74,7 @@ module RSAF
         @stack << mod_def
         visit_all(node.children)
         @stack.pop
+        @last_sig = nil
       end
 
       sig { params(node: AST::Node).void }
@@ -94,6 +96,7 @@ module RSAF
         @stack << class_def
         visit_all(node.children)
         @stack.pop
+        @last_sig = nil
       end
 
       # Properties
@@ -118,7 +121,8 @@ module RSAF
             prop = Model::Attr.new(T.cast(last.scope, Model::Class), name, qname, kind)
           end
           loc = Location.from_node(@file, node)
-          Model::AttrDef.new(loc, T.cast(last, Model::ClassDef), prop, kind)
+          Model::AttrDef.new(loc, T.cast(last, Model::ClassDef), prop, kind, @last_sig)
+          @last_sig = nil
         end
       end
 
@@ -135,6 +139,7 @@ module RSAF
 
         loc = Location.from_node(@file, node)
         Model::ConstDef.new(loc, last, prop)
+        @last_sig = nil
       end
 
       sig { params(node: AST::Node).void }
@@ -150,7 +155,8 @@ module RSAF
 
         loc = Location.from_node(@file, node)
         params = node.children[1].children.map { |n| Model::Param.new(n.children.first.to_s) } if node.children[1]
-        Model::MethodDef.new(loc, last, prop, false, params)
+        Model::MethodDef.new(loc, last, prop, false, params, @last_sig)
+        @last_sig = nil
       end
 
       sig { params(node: AST::Node).void }
@@ -166,7 +172,8 @@ module RSAF
 
         loc = Location.from_node(@file, node)
         params = node.children[2].children.map { |n| Model::Param.new(n.children.first.to_s) } if node.children[2]
-        Model::MethodDef.new(loc, last, prop, true, params)
+        Model::MethodDef.new(loc, last, prop, true, params, @last_sig)
+        @last_sig = nil
       end
 
       sig { params(node: AST::Node).void }
@@ -176,6 +183,8 @@ module RSAF
           visit_attr(node)
         when :include, :prepend, :extend
           visit_include(node)
+        when :sig
+          visit_sig(node)
         end
       end
 
@@ -185,6 +194,15 @@ module RSAF
         name = visit_name(node.children[2])
         kind = node.children[1]
         Model::IncludeDef.new(last, name, kind)
+      end
+
+      sig { params(node: AST::Node).void }
+      def visit_sig(node)
+        if @last_sig
+          # TODO: print error
+          puts "error: already in a sig"
+        end
+        @last_sig = Model::Sig.new
       end
 
       # Utils

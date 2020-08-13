@@ -239,6 +239,10 @@ module RSAF
         v.printt(v.colorize("signature: #{name}", :light_black))
         v.print(v.colorize("(#{params.map(&:name).join(', ')})", :light_black)) unless params.empty?
         v.printn
+        if sig
+          v.printt(v.colorize("sig: #{true}", :light_black))
+          v.printn
+        end
         v.dedent
       end
     end

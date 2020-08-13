@@ -349,10 +349,22 @@ module RSAF
       sig { returns(Symbol) }
       attr_reader :kind
 
-      sig { params(loc: Location, scope_def: ClassDef, property: Property, kind: Symbol).void }
-      def initialize(loc, scope_def, property, kind)
+      sig { returns(T.nilable(Sig)) }
+      attr_reader :sig
+
+      sig do
+        params(
+          loc: Location,
+          scope_def: ClassDef,
+          property: Property,
+          kind: Symbol,
+          sig: T.nilable(Sig)
+        ).void
+      end
+      def initialize(loc, scope_def, property, kind, sig)
         super(loc, scope_def, property)
         @kind = kind
+        @sig = sig
         scope_def.attrs << self
       end
     end
@@ -376,19 +388,24 @@ module RSAF
       sig { returns(T::Array[Param]) }
       attr_reader :params
 
+      sig { returns(T.nilable(Sig)) }
+      attr_reader :sig
+
       sig do
         params(
           loc: Location,
           scope_def: ScopeDef,
           property: Property,
           is_singleton: T::Boolean,
-          params: T::Array[Param]
+          params: T::Array[Param],
+          sig: T.nilable(Sig)
         ).void
       end
-      def initialize(loc, scope_def, property, is_singleton, params)
+      def initialize(loc, scope_def, property, is_singleton, params, sig)
         super(loc, scope_def, property)
         @is_singleton = is_singleton
         @params = params
+        @sig = sig
         scope_def.methods << self
       end
     end
@@ -431,6 +448,9 @@ module RSAF
       def to_s
         @name
       end
+    end
+
+    class Sig < MObject
     end
   end
 end

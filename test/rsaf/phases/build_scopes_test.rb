@@ -351,6 +351,44 @@ module RSAF
         EXP
       end
 
+      def test_build_scopes_method_sig
+        rb = <<~RB
+          sig { void }
+          def f0; end
+
+          sig { params(a: Integer).returns(String) }
+          def f1(a); end
+
+          class A
+            sig do
+              params(
+                a: Integer,
+                b: String,
+                c: T.nilable(String)
+              ).returns(String)
+            end
+            def f2(a, b, c); end
+          end
+        RB
+        assert_equal(<<~EXP, compile(rb))
+          module <root>
+            defined at :0:0
+            def f0
+              defined at :2:0-2:11
+                signature: f0
+                sig: true
+            def f1
+              defined at :5:0-5:14
+                signature: f1(a)
+                sig: true
+            class ::A
+              defined at :7:0-16:3
+              def f2
+                defined at :15:2-15:22
+                  signature: f2(a, b, c)
+                  sig: true
+        EXP
+      end
       private
 
       def compile(code)
