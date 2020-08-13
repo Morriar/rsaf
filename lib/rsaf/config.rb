@@ -12,7 +12,7 @@ module RSAF
     attr_reader :timers
 
     sig { params(colors: T::Boolean, timers: T::Boolean).void }
-    def initialize(colors: true, timers: true)
+    def initialize(colors: true, timers: false)
       @colors = colors
       @timers = timers
     end
