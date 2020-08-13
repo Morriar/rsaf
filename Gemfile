@@ -6,6 +6,7 @@ gemspec
 
 gem("colorize")
 gem("parser")
+gem("ruby-graphviz")
 gem("sorbet-runtime")
 
 group :development do

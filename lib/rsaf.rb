@@ -13,6 +13,7 @@ require_relative 'rsaf/model_printer'
 require_relative 'rsaf/parser'
 require_relative 'rsaf/phases/build_scopes'
 require_relative 'rsaf/phases/build_inheritance'
+require_relative 'rsaf/uml'
 
 module RSAF
   class CLI < Thor
@@ -39,6 +40,9 @@ module RSAF
       files = compiler.list_files(*T.unsafe(files))
       model = compiler.compile(*files)
       Model::ModelPrinter.new(colors: config.colors).print_model(model)
+      # TODO UML.draw(model, "uml.png")
+      # TODO parse doc
+      # TODO parse with sorbet output
     end
 
     sig { returns(T::Boolean) }
