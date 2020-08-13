@@ -106,22 +106,16 @@ module RSAF
         last = T.must(@stack.last)
         kind = node.children[1]
 
-        unless last.scope.is_a?(Model::Class)
-          # TODO: print error
-          puts "error: adding attributes to module #{last.scope}"
-          return
-        end
-
         node.children[2..-1].each do |child|
           name = child.children.first.to_s
           qname = Model::Attr.qualify_name(last.scope, name)
 
           prop = @model.properties[qname]
           unless prop
-            prop = Model::Attr.new(T.cast(last.scope, Model::Class), name, qname, kind)
+            prop = Model::Attr.new(last.scope, name, qname, kind)
           end
           loc = Location.from_node(@file, node)
-          Model::AttrDef.new(loc, T.cast(last, Model::ClassDef), prop, kind, @last_sig)
+          Model::AttrDef.new(loc, last, prop, kind, @last_sig)
           @last_sig = nil
         end
       end

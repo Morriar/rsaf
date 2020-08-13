@@ -106,6 +106,9 @@ module RSAF
       sig { returns(T::Array[Const]) }
       attr_reader :consts
 
+      sig { returns(T::Array[Attr]) }
+      attr_reader :attrs
+
       sig { returns(T::Array[Method]) }
       attr_reader :methods
 
@@ -116,6 +119,7 @@ module RSAF
         @children = T.let([], T::Array[Scope])
         @defs = T.let([], T::Array[ScopeDef])
         @includes = T.let([], T::Array[Include])
+        @attrs = T.let([], T::Array[Attr])
         @consts = T.let([], T::Array[Const])
         @methods = T.let([], T::Array[Method])
         parent.children << self if parent
@@ -161,16 +165,12 @@ module RSAF
     class Class < Scope
       extend T::Sig
 
-      sig { returns(T::Array[Attr]) }
-      attr_reader :attrs
-
       sig { returns(T.nilable(Model::Class)) }
       attr_accessor :superclass
 
       sig { params(parent: T.nilable(Scope), name: String, qname: String).void }
       def initialize(parent, name, qname)
         super(parent, name, qname)
-        @attrs = T.let([], T::Array[Attr])
       end
     end
 
@@ -197,7 +197,7 @@ module RSAF
       sig { returns(Symbol) }
       attr_reader :kind
 
-      sig { params(scope: Model::Class, name: String, qname: String, kind: Symbol).void }
+      sig { params(scope: Model::Scope, name: String, qname: String, kind: Symbol).void }
       def initialize(scope, name, qname, kind)
         super(scope, name, qname)
         @kind = kind
@@ -262,21 +262,26 @@ module RSAF
       sig { returns(Scope) }
       attr_reader :scope
 
-      sig { returns(T::Array[ConstDef]) }
-      attr_reader :consts
-
       sig { returns(T::Array[IncludeDef]) }
       attr_reader :includes
 
+      sig { returns(T::Array[ConstDef]) }
+      attr_reader :consts
+
+      sig { returns(T::Array[AttrDef]) }
+      attr_reader :attrs
+
       sig { returns(T::Array[MethodDef]) }
       attr_reader :methods
+
 
       sig { params(loc: Location, scope: Scope).void }
       def initialize(loc, scope)
         @loc = loc
         @scope = scope
-        @consts = T.let([], T::Array[ConstDef])
         @includes = T.let([], T::Array[IncludeDef])
+        @consts = T.let([], T::Array[ConstDef])
+        @attrs = T.let([], T::Array[AttrDef])
         @methods = T.let([], T::Array[MethodDef])
         scope.defs << self
       end
@@ -306,14 +311,10 @@ module RSAF
       sig { returns(T.nilable(String)) }
       attr_reader :superclass_name
 
-      sig { returns(T::Array[AttrDef]) }
-      attr_reader :attrs
-
       sig { params(loc: Location, scope: Scope, superclass_name: T.nilable(String)).void }
       def initialize(loc, scope, superclass_name = nil)
         super(loc, scope)
         @superclass_name = superclass_name
-        @attrs = T.let([], T::Array[AttrDef])
       end
     end
 
@@ -355,7 +356,7 @@ module RSAF
       sig do
         params(
           loc: Location,
-          scope_def: ClassDef,
+          scope_def: ScopeDef,
           property: Property,
           kind: Symbol,
           sig: T.nilable(Sig)

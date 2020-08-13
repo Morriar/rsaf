@@ -124,6 +124,7 @@ module RSAF
       sig { params(v: Model::ModelPrinter).void }
       def print_properties(v)
         v.visit_all(consts)
+        v.visit_all(attrs)
         v.visit_all(methods)
       end
     end
@@ -147,13 +148,6 @@ module RSAF
         v.print(" < #{superclass}") if superclass
         v.printn
         super(v)
-      end
-
-      sig { params(v: Model::ModelPrinter).void }
-      def print_properties(v)
-        v.visit_all(consts)
-        v.visit_all(attrs)
-        v.visit_all(methods)
       end
     end
 
