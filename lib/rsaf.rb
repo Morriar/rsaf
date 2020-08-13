@@ -21,7 +21,7 @@ module RSAF
     default_task :parse
 
     class_option :color, desc: "Use colors", type: :boolean, default: true
-
+    class_option :timers, desc: "Display timers", type: :boolean, default: false
 
     desc "run FILE *FILES", "parses files"
     sig { params(files: String).void }
@@ -31,7 +31,10 @@ module RSAF
         help
         exit 1
       end
-      config = Config.new(colors: options[:color]) # TODO: option
+      config = Config.new(
+        colors: options[:color],
+        timers: options[:timers],
+      )
       compiler = Compiler.new(config)
       files = compiler.list_files(*T.unsafe(files))
       model = compiler.compile(*files)

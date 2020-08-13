@@ -8,9 +8,13 @@ module RSAF
     sig { returns(T::Boolean) }
     attr_reader :colors
 
-    sig { params(colors: T::Boolean).void }
-    def initialize(colors: true)
+    sig { returns(T::Boolean) }
+    attr_reader :timers
+
+    sig { params(colors: T::Boolean, timers: T::Boolean).void }
+    def initialize(colors: true, timers: true)
       @colors = colors
+      @timers = timers
     end
   end
 end

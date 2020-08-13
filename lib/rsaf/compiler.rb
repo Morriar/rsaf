@@ -16,9 +16,11 @@ module RSAF
     sig { params(files: String).returns(Model) }
     def compile(*files)
       model = Model.new
+      start_clock
       couples = files.map do |file|
         [file, parse_file(file)]
       end
+      puts "Parsing... (#{stop_clock}s)" if @config.timers
       couples.each do |couple|
         run_local_phases(model, couple.first, couple.last)
       end
@@ -29,7 +31,9 @@ module RSAF
     sig { params(code: String).returns(Model) }
     def compile_code(code)
       model = Model.new
+      start_clock
       tree = parse_string(code)
+      puts "Parsing... (#{stop_clock}s)" if @config.timers
       run_local_phases(model, nil, tree)
       run_global_phases(model)
       model
@@ -38,11 +42,13 @@ module RSAF
     sig { params(model: Model, file: T.nilable(String), tree: T.nilable(AST::Node)).void }
     def run_local_phases(model, file, tree)
       Phases::BuildScopes.run(model, file, tree)
+      puts "Local phases... (#{stop_clock}s)" if @config.timers
     end
 
     sig { params(model: Model).void }
     def run_global_phases(model)
       Phases::BuildInheritance.run(model)
+      puts "Global phases... (#{stop_clock}s)" if @config.timers
     end
 
     sig { params(string: String).returns(T.nilable(AST::Node)) }
@@ -70,6 +76,18 @@ module RSAF
         end
       end
       files.uniq.sort
+    end
+
+    private
+
+    sig { void }
+    def start_clock
+      @lapse = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+
+    sig { returns(Numeric) }
+    def stop_clock
+      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - T.must(@lapse)).round(3)
     end
   end
 end
