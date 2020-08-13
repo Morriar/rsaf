@@ -21,10 +21,14 @@ module RSAF
         [file, parse_file(file)]
       end
       puts "Parsing... (#{stop_clock}s)" if @config.timers
+      start_clock
       couples.each do |couple|
         run_local_phases(model, couple.first, couple.last)
       end
+      puts "Local phases... (#{stop_clock}s)" if @config.timers
+      start_clock
       run_global_phases(model)
+      puts "Global phases... (#{stop_clock}s)" if @config.timers
       model
     end
 
@@ -34,21 +38,23 @@ module RSAF
       start_clock
       tree = parse_string(code)
       puts "Parsing... (#{stop_clock}s)" if @config.timers
+      start_clock
       run_local_phases(model, nil, tree)
+      puts "Local phases... (#{stop_clock}s)" if @config.timers
+      start_clock
       run_global_phases(model)
+      puts "Global phases... (#{stop_clock}s)" if @config.timers
       model
     end
 
     sig { params(model: Model, file: T.nilable(String), tree: T.nilable(AST::Node)).void }
     def run_local_phases(model, file, tree)
       Phases::BuildScopes.run(model, file, tree)
-      puts "Local phases... (#{stop_clock}s)" if @config.timers
     end
 
     sig { params(model: Model).void }
     def run_global_phases(model)
       Phases::BuildInheritance.run(model)
-      puts "Global phases... (#{stop_clock}s)" if @config.timers
     end
 
     sig { params(string: String).returns(T.nilable(AST::Node)) }
