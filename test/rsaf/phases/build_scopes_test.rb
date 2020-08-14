@@ -7,7 +7,7 @@ module RSAF
   module Phases
     class BuildScopeDefsTest < Minitest::Test
       def test_build_scopes_empty
-        assert_equal(<<~EXP, compile(""))
+        assert_equal(<<~EXP, model(""))
           module <root>
             defined at :0:0
         EXP
@@ -20,7 +20,7 @@ module RSAF
           class A::B
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             module ::A
@@ -42,7 +42,7 @@ module RSAF
             module E; end
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             module ::A
@@ -70,7 +70,7 @@ module RSAF
             module F::G; end
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             module ::A
@@ -99,7 +99,7 @@ module RSAF
             class F::G; end
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             module ::A
@@ -134,7 +134,7 @@ module RSAF
             extend A
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             module ::A
@@ -157,7 +157,7 @@ module RSAF
           class A; end
           class B < A; end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             class ::A
@@ -173,7 +173,7 @@ module RSAF
             class B < A; end
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             class ::A
@@ -195,7 +195,7 @@ module RSAF
             attr_accessor :d, :e
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             class ::A
@@ -228,7 +228,7 @@ module RSAF
             B = 1
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             ROOT
@@ -261,7 +261,7 @@ module RSAF
             def z; end
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             def root
@@ -298,7 +298,7 @@ module RSAF
             def self.z; end
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             def self.root
@@ -330,7 +330,7 @@ module RSAF
           def f3(a = 1, *b, c:); end
           def f4(&blk); end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             def f0
@@ -370,7 +370,7 @@ module RSAF
             def f2(a, b, c); end
           end
         RB
-        assert_equal(<<~EXP, compile(rb))
+        assert_equal(<<~EXP, model(rb))
           module <root>
             defined at :0:0
             def f0
@@ -389,15 +389,63 @@ module RSAF
                   sig: true
         EXP
       end
+
+      def test_build_scopes_sources
+        rb = <<~RB
+          def root; end
+
+          module A
+            def a; end
+            module B
+              class C; end
+              def b; end
+            end
+            def z; end
+          end
+        RB
+        model = compile(rb)
+        assert_equal(1, model.files.length)
+        assert_equal(<<~EXP, print_object(model.files.first.root_def))
+          module <root>
+            defined at :0:0
+            def root
+              defined at :1:0-1:13
+                signature: root
+            module ::A
+              defined at :3:0-10:3
+              def a
+                defined at :4:2-4:12
+                  signature: a
+              def z
+                defined at :9:2-9:12
+                  signature: z
+              module ::A::B
+                defined at :5:2-8:5
+                def b
+                  defined at :7:4-7:14
+                    signature: b
+                class ::A::B::C
+                  defined at :6:4-6:16
+        EXP
+      end
+
       private
 
       def compile(code)
         config = Config.new(colors: false)
         compiler = Compiler.new(config)
-        model = compiler.compile_code(code)
+        compiler.compile_code(code)
+      end
+
+      def print_object(object)
         out = StringIO.new
-        Model::ModelPrinter.new(colors: false, out: out).print_model(model)
+        Model::ModelPrinter.new(colors: false, out: out).print_object(object)
         out.string
+      end
+
+      def model(code)
+        model = compile(code)
+        print_object(model.root)
       end
 
       def names(array)

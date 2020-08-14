@@ -8,6 +8,9 @@ module RSAF
     sig { returns(Model::Module) }
     attr_reader :root
 
+    sig { returns(T::Array[SourceFile]) }
+    attr_reader :files
+
     sig { returns(T::Hash[String, Model::Scope]) }
     attr_reader :scopes
 
@@ -16,6 +19,7 @@ module RSAF
 
     sig { void }
     def initialize
+      @files = T.let([], T::Array[SourceFile])
       @scopes = T.let({}, T::Hash[String, Model::Scope])
       @properties = T.let({}, T::Hash[String, Model::Property])
       @root = T.let(make_root, Model::Module) # TODO: move to builder?
@@ -262,6 +266,12 @@ module RSAF
       sig { returns(Scope) }
       attr_reader :scope
 
+      sig { returns(T.nilable(ScopeDef)) }
+      attr_reader :parent_def
+
+      sig { returns(T::Array[ScopeDef]) }
+      attr_reader :children
+
       sig { returns(T::Array[IncludeDef]) }
       attr_reader :includes
 
@@ -275,14 +285,17 @@ module RSAF
       attr_reader :methods
 
 
-      sig { params(loc: Location, scope: Scope).void }
-      def initialize(loc, scope)
+      sig { params(loc: Location, scope: Scope, parent_def: T.nilable(ScopeDef)).void }
+      def initialize(loc, scope, parent_def)
         @loc = loc
         @scope = scope
+        @parent_def = parent_def
+        @children = T.let([], T::Array[ScopeDef])
         @includes = T.let([], T::Array[IncludeDef])
         @consts = T.let([], T::Array[ConstDef])
         @attrs = T.let([], T::Array[AttrDef])
         @methods = T.let([], T::Array[MethodDef])
+        parent_def.children << self if parent_def
         scope.defs << self
       end
 
@@ -311,9 +324,9 @@ module RSAF
       sig { returns(T.nilable(String)) }
       attr_reader :superclass_name
 
-      sig { params(loc: Location, scope: Scope, superclass_name: T.nilable(String)).void }
-      def initialize(loc, scope, superclass_name = nil)
-        super(loc, scope)
+      sig { params(loc: Location, scope: Scope, parent_def: T.nilable(ScopeDef), superclass_name: T.nilable(String)).void }
+      def initialize(loc, scope, parent_def, superclass_name = nil)
+        super(loc, scope, parent_def)
         @superclass_name = superclass_name
       end
     end

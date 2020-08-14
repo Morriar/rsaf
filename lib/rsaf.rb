@@ -14,6 +14,7 @@ require_relative 'rsaf/model_printer'
 require_relative 'rsaf/parser'
 require_relative 'rsaf/phases/build_scopes'
 require_relative 'rsaf/phases/build_inheritance'
+require_relative 'rsaf/source_file'
 require_relative 'rsaf/treemap'
 
 module RSAF
@@ -31,9 +32,9 @@ module RSAF
       Model::ModelPrinter.new(colors: config.colors).print_model(model)
     end
 
-    desc "tree *FILES", "print files tree"
+    desc "treemap *FILES", "print files tree"
     sig { params(files: String).void }
-    def print(*files)
+    def treemap(*files)
       # config = parse_config
       model = parse_files(*T.unsafe(files))
       Model::Treemap.new.print_model(model)

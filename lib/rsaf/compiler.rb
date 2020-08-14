@@ -17,13 +17,13 @@ module RSAF
     def compile(*files)
       model = Model.new
       start_clock
-      couples = files.map do |file|
-        [file, parse_file(file)]
+      sources = files.map do |file|
+        parse_file(file)
       end
       puts "Parsing... (#{stop_clock}s)" if @config.timers
       start_clock
-      couples.each do |couple|
-        run_local_phases(model, couple.first, couple.last)
+      sources.each do |source|
+        run_local_phases(model, source)
       end
       puts "Local phases... (#{stop_clock}s)" if @config.timers
       start_clock
@@ -36,10 +36,10 @@ module RSAF
     def compile_code(code)
       model = Model.new
       start_clock
-      tree = parse_string(code)
+      source = parse_string(code)
       puts "Parsing... (#{stop_clock}s)" if @config.timers
       start_clock
-      run_local_phases(model, nil, tree)
+      run_local_phases(model, source)
       puts "Local phases... (#{stop_clock}s)" if @config.timers
       start_clock
       run_global_phases(model)
@@ -47,9 +47,9 @@ module RSAF
       model
     end
 
-    sig { params(model: Model, file: T.nilable(String), tree: T.nilable(AST::Node)).void }
-    def run_local_phases(model, file, tree)
-      Phases::BuildScopes.run(model, file, tree)
+    sig { params(model: Model, source: SourceFile).void }
+    def run_local_phases(model, source)
+      Phases::BuildScopes.run(model, source)
     end
 
     sig { params(model: Model).void }
@@ -57,20 +57,22 @@ module RSAF
       Phases::BuildInheritance.run(model)
     end
 
-    sig { params(string: String).returns(T.nilable(AST::Node)) }
+    sig { params(string: String).returns(SourceFile) }
     def parse_string(string)
-      Parser.parse_string(string)
+      tree = Parser.parse_string(string)
+      SourceFile.new(path: nil, tree: tree)
     rescue ::Parser::SyntaxError
-      # TODO
-      nil
+      # TODO add errors to file
+      SourceFile.new(path: nil, tree: nil)
     end
 
-    sig { params(file: String).returns(T.nilable(AST::Node)) }
+    sig { params(file: String).returns(SourceFile) }
     def parse_file(file)
-      Parser.parse_file(file)
+      tree = Parser.parse_file(file)
+      SourceFile.new(path: file, tree: tree)
     rescue ::Parser::SyntaxError
-      # TODO
-      nil
+      # TODO add errors to file
+      SourceFile.new(path: file, tree: nil)
     end
 
     sig { params(paths: String).returns(T::Array[String]) }

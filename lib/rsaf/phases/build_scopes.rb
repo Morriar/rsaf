@@ -6,17 +6,20 @@ module RSAF
     class BuildScopes
       extend T::Sig
 
-      sig { params(model: Model, file: T.nilable(String), node: T.nilable(AST::Node)).void }
-      def self.run(model, file, node)
-        phase = BuildScopes.new(model, file)
-        phase.visit(node)
+      sig { params(model: Model, source: SourceFile).void }
+      def self.run(model, source)
+        phase = BuildScopes.new(model, source)
+        phase.visit(source.tree)
       end
 
-      sig { params(model: Model, file: T.nilable(String)).void }
-      def initialize(model, file)
+      sig { params(model: Model, source: SourceFile).void }
+      def initialize(model, source)
         @model = model
-        @file = file
-        @stack = T.let([make_root_def], T::Array[Model::ScopeDef])
+        @source = source
+        model.files << source
+        root_def = make_root_def
+        source.root_def = root_def
+        @stack = T.let([root_def], T::Array[Model::ScopeDef])
         @last_sig = T.let(nil, T.nilable(Model::Sig))
       end
 
@@ -51,7 +54,7 @@ module RSAF
 
       sig { returns(Model::ModuleDef) }
       def make_root_def
-        Model::ModuleDef.new(Location.new(@file, Position.new(0, 0)), @model.root)
+        Model::ModuleDef.new(Location.new(@source.path, Position.new(0, 0)), @model.root, nil)
       end
 
       # Scopes
@@ -68,8 +71,8 @@ module RSAF
           @model.add_module(mod)
         end
 
-        loc = Location.from_node(@file, node)
-        mod_def = Model::ModuleDef.new(loc, mod)
+        loc = Location.from_node(@source.path, node)
+        mod_def = Model::ModuleDef.new(loc, mod, last)
 
         @stack << mod_def
         visit_all(node.children)
@@ -89,9 +92,9 @@ module RSAF
           @model.add_class(klass)
         end
 
-        loc = Location.from_node(@file, node)
+        loc = Location.from_node(@source.path, node)
         superclass = visit_name(node.children[1]) if node.children[1]
-        class_def = Model::ClassDef.new(loc, klass, superclass)
+        class_def = Model::ClassDef.new(loc, klass, last, superclass)
 
         @stack << class_def
         visit_all(node.children)
@@ -114,7 +117,7 @@ module RSAF
           unless prop
             prop = Model::Attr.new(last.scope, name, qname, kind)
           end
-          loc = Location.from_node(@file, node)
+          loc = Location.from_node(@source.path, node)
           Model::AttrDef.new(loc, last, prop, kind, @last_sig)
           @last_sig = nil
         end
@@ -131,7 +134,7 @@ module RSAF
           prop = Model::Const.new(last.scope, name, qname)
         end
 
-        loc = Location.from_node(@file, node)
+        loc = Location.from_node(@source.path, node)
         Model::ConstDef.new(loc, last, prop, nil)
         @last_sig = nil
       end
@@ -147,7 +150,7 @@ module RSAF
           prop = Model::Method.new(last.scope, name.to_s, qname, false)
         end
 
-        loc = Location.from_node(@file, node)
+        loc = Location.from_node(@source.path, node)
         params = node.children[1].children.map { |n| Model::Param.new(n.children.first.to_s) } if node.children[1]
         Model::MethodDef.new(loc, last, prop, false, params, @last_sig)
         @last_sig = nil
@@ -164,7 +167,7 @@ module RSAF
           prop = Model::Method.new(last.scope, name.to_s, qname, true)
         end
 
-        loc = Location.from_node(@file, node)
+        loc = Location.from_node(@source.path, node)
         params = node.children[2].children.map { |n| Model::Param.new(n.children.first.to_s) } if node.children[2]
         Model::MethodDef.new(loc, last, prop, true, params, @last_sig)
         @last_sig = nil

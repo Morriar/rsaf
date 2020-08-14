@@ -31,7 +31,7 @@ module RSAF
         visit(model.root)
       end
 
-      sig { params(object: Model::Entity).void }
+      sig { params(object: Model::MObject).void }
       def print_object(object)
         visit(object)
       end
@@ -102,7 +102,9 @@ module RSAF
       def accept_printer(v)
         if v.print_defs
           v.indent
-          v.visit_all(defs)
+          defs.each do |d|
+            v.printl(v.colorize("defined at #{d.loc}", :light_black))
+          end
           v.dedent
         end
         v.indent
@@ -110,7 +112,9 @@ module RSAF
         v.dedent
         if v.print_properties
           v.indent
-          print_properties(v)
+          v.visit_all(consts)
+          v.visit_all(attrs)
+          v.visit_all(methods)
           v.dedent
         end
         unless children.empty?
@@ -119,13 +123,6 @@ module RSAF
           v.dedent
         end
         # TODO: visit nesting
-      end
-
-      sig { params(v: Model::ModelPrinter).void }
-      def print_properties(v)
-        v.visit_all(consts)
-        v.visit_all(attrs)
-        v.visit_all(methods)
       end
     end
 
@@ -156,11 +153,23 @@ module RSAF
 
       sig { override.params(v: Model::ModelPrinter).void }
       def accept_printer(v)
-        if v.print_defs
-          v.indent
-          v.visit_all(defs)
-          v.dedent
+        return unless v.print_defs
+        v.indent
+        defs.each do |d|
+          v.printl(v.colorize("defined at #{d.loc}", :light_black))
+          if d.is_a?(MethodDef)
+            v.indent
+            v.printt(v.colorize("signature: #{d.name}", :light_black))
+            v.print(v.colorize("(#{d.params.map(&:name).join(', ')})", :light_black)) unless d.params.empty?
+            v.printn
+            if d.sorbet_sig
+              v.printt(v.colorize("sig: #{true}", :light_black))
+              v.printn
+            end
+            v.dedent
+          end
         end
+        v.dedent
       end
     end
 
@@ -210,7 +219,45 @@ module RSAF
 
       sig { override.params(v: Model::ModelPrinter).void }
       def accept_printer(v)
+        return unless v.print_defs
+        v.indent
         v.printl(v.colorize("defined at #{loc}", :light_black))
+        v.visit_all(includes)
+        v.dedent
+        if v.print_properties
+          v.indent
+          v.visit_all(consts)
+          v.visit_all(attrs)
+          v.visit_all(methods)
+          v.dedent
+        end
+        unless children.empty?
+          v.indent
+          v.visit_all(children)
+          v.dedent
+        end
+      end
+    end
+
+    class ModuleDef
+      extend T::Sig
+
+      sig { override.params(v: Model::ModelPrinter).void }
+      def accept_printer(v)
+        v.printl("module #{qname}")
+        super(v)
+      end
+    end
+
+    class ClassDef
+      extend T::Sig
+
+      sig { override.params(v: Model::ModelPrinter).void }
+      def accept_printer(v)
+        v.printt("class #{qname}")
+        v.print(" < #{superclass_name}") if superclass_name
+        v.printn
+        super(v)
       end
     end
 
@@ -219,7 +266,29 @@ module RSAF
 
       sig { override.params(v: Model::ModelPrinter).void }
       def accept_printer(v)
+        v.indent
         v.printl(v.colorize("defined at #{loc}", :light_black))
+        v.dedent
+      end
+    end
+
+    class AttrDef
+      extend T::Sig
+
+      sig { override.params(v: Model::ModelPrinter).void }
+      def accept_printer(v)
+        v.printl("#{kind} #{name}")
+        super(v)
+      end
+    end
+
+    class ConstDef
+      extend T::Sig
+
+      sig { override.params(v: Model::ModelPrinter).void }
+      def accept_printer(v)
+        v.printl(name)
+        super(v)
       end
     end
 
@@ -228,7 +297,9 @@ module RSAF
 
       sig { override.params(v: Model::ModelPrinter).void }
       def accept_printer(v)
+        v.printl("def #{is_singleton ? 'self.' : ''}#{name}")
         super(v)
+        v.indent
         v.indent
         v.printt(v.colorize("signature: #{name}", :light_black))
         v.print(v.colorize("(#{params.map(&:name).join(', ')})", :light_black)) unless params.empty?
@@ -237,6 +308,7 @@ module RSAF
           v.printt(v.colorize("sig: #{true}", :light_black))
           v.printn
         end
+        v.dedent
         v.dedent
       end
     end
