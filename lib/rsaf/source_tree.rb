@@ -3,16 +3,13 @@
 module RSAF
   class SourceTree
 
-    def initialize(files)
+    def initialize(sources)
       @roots = {}
-      add_paths(files)
+      sources.each { |p| add_source(p) }
     end
 
-    def add_paths(paths)
-      paths.each { |p| add_path(p) }
-    end
-
-    def add_path(path)
+    def add_source(source)
+      path = source.path
       parts = path.split("/")
       name = parts.first
       node = @roots[name] ||= Node.new(name)
@@ -20,6 +17,7 @@ module RSAF
         name = parts[i]
         node = node.children[name] ||= Node.new(name)
       end
+      node.source = source
     end
 
     def print_tree(out = $stdout)
@@ -29,6 +27,7 @@ module RSAF
 
     class Node
       attr_reader :name
+      attr_accessor :source
       attr_reader :children
 
       def initialize(name)
@@ -37,7 +36,13 @@ module RSAF
       end
 
       def accept(v)
-        v.printn(name)
+        v.printt
+        v.print(name)
+        if source
+          strictness = source.strictness
+          v.print(" (typed: #{strictness})") if strictness
+        end
+        v.printn
         v.indent
         v.visit_all(@children.values)
         v.dedent
@@ -58,8 +63,16 @@ module RSAF
         nodes.each { |n| visit(n) }
       end
 
-      def printn(str)
-        @out.print("#{' ' * @current_indent}#{str}\n")
+      def printt
+        @out.print(' ' * @current_indent)
+      end
+
+      def print(str)
+        @out.print(str)
+      end
+
+      def printn
+        @out.print("\n")
       end
 
       def indent

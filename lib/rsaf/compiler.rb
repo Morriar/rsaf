@@ -13,12 +13,12 @@ module RSAF
       @lapse = T.let(nil, T.nilable(T.any(Integer, Float)))
     end
 
-    sig { params(files: String).returns(Model) }
-    def compile(*files)
+    sig { params(sources: SourceFile).returns(Model) }
+    def compile(*sources)
       model = Model.new
       start_clock
-      sources = files.map do |file|
-        parse_file(file)
+      sources.each do |source|
+        parse_source(source)
       end
       puts "Parsing... (#{stop_clock}s)" if @config.timers
       start_clock
@@ -60,22 +60,20 @@ module RSAF
     sig { params(string: String).returns(SourceFile) }
     def parse_string(string)
       tree = Parser.parse_string(string)
-      SourceFile.new(path: nil, tree: tree)
+      SourceFile.new(tree: tree)
     rescue ::Parser::SyntaxError
       # TODO add errors to file
-      SourceFile.new(path: nil, tree: nil)
+      SourceFile.new
     end
 
-    sig { params(file: String).returns(SourceFile) }
-    def parse_file(file)
-      tree = Parser.parse_file(file)
-      SourceFile.new(path: file, tree: tree)
+    sig { params(source: SourceFile).void }
+    def parse_source(source)
+      source.tree = Parser.parse_file(source.path)
     rescue ::Parser::SyntaxError
       # TODO add errors to file
-      SourceFile.new(path: file, tree: nil)
     end
 
-    sig { params(paths: String).returns(T::Array[String]) }
+    sig { params(paths: String).returns(T::Array[SourceFile]) }
     def list_files(*paths)
       files = []
       paths.each do |path|
@@ -89,7 +87,10 @@ module RSAF
           files << path
         end
       end
-      files.uniq.sort
+      files.uniq.sort.map do |f|
+        strictness = File.read(f).match(/#\s*typed\s*:\s*([a-zA-Z_]+)\s*$/)[1]
+        SourceFile.new(path: f, strictness: strictness)
+      end
     end
 
     private
