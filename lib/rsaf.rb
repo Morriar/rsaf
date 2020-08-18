@@ -22,6 +22,7 @@ module RSAF
   class CLI < Thor
     extend T::Sig
 
+    class_option :global, desc: "Run global analysis phases (like inheritance)", type: :boolean, default: true
     class_option :color, desc: "Use colors", type: :boolean, default: true
     class_option :timers, desc: "Display timers", type: :boolean, default: false
 
@@ -38,6 +39,7 @@ module RSAF
         @config ||= Config.new(
           colors: options[:color],
           timers: options[:timers],
+          global: options[:global],
         )
       end
 

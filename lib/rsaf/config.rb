@@ -6,15 +6,13 @@ module RSAF
     extend T::Sig
 
     sig { returns(T::Boolean) }
-    attr_reader :colors
+    attr_reader :colors, :timers, :global
 
-    sig { returns(T::Boolean) }
-    attr_reader :timers
-
-    sig { params(colors: T::Boolean, timers: T::Boolean).void }
-    def initialize(colors: true, timers: false)
+    sig { params(colors: T::Boolean, timers: T::Boolean, global: T::Boolean).void }
+    def initialize(colors: true, timers: false, global: true)
       @colors = colors
       @timers = timers
+      @global = global
     end
   end
 end

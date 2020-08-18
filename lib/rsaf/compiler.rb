@@ -26,9 +26,11 @@ module RSAF
         run_local_phases(model, source)
       end
       puts "Local phases... (#{stop_clock}s)" if @config.timers
-      start_clock
-      run_global_phases(model)
-      puts "Global phases... (#{stop_clock}s)" if @config.timers
+      if @config.global
+        start_clock
+        run_global_phases(model)
+        puts "Global phases... (#{stop_clock}s)" if @config.timers
+      end
       model
     end
 
@@ -41,9 +43,11 @@ module RSAF
       start_clock
       run_local_phases(model, source)
       puts "Local phases... (#{stop_clock}s)" if @config.timers
-      start_clock
-      run_global_phases(model)
-      puts "Global phases... (#{stop_clock}s)" if @config.timers
+      if @config.global
+        start_clock
+        run_global_phases(model)
+        puts "Global phases... (#{stop_clock}s)" if @config.timers
+      end
       model
     end
 
