@@ -5,7 +5,7 @@ module RSAF
   module Parser
     extend T::Sig
 
-    @@default_parser = T.let(RSAF::Parser::Whitequark.new, RSAF::Parser::Base)
+    @@default_parser = T.let(RSAF::Parser::Sorbet.new, RSAF::Parser::Base)
 
     sig { params(string: T.nilable(String)).returns(T.nilable(::AST::Node)) }
     def self.parse_string(string)
