@@ -1,31 +1,20 @@
 # typed: strict
 # frozen_string_literal: true
 
-require 'parser/current'
-
 module RSAF
-  class Parser
+  module Parser
     extend T::Sig
 
-    sig { void }
-    def self.init
-      # opt-in to most recent AST format:
-      ::Parser::Builders::Default.emit_lambda   = true
-      ::Parser::Builders::Default.emit_procarg0 = true
-      ::Parser::Builders::Default.emit_encoding = true
-      ::Parser::Builders::Default.emit_index    = true
-    end
+    @@default_parser = T.let(RSAF::Parser::Whitequark.new, RSAF::Parser::Base)
 
     sig { params(string: T.nilable(String)).returns(T.nilable(::AST::Node)) }
     def self.parse_string(string)
-      return nil unless string
-      ::Parser::CurrentRuby.parse(string)
+      @@default_parser.parse_string(string)
     end
 
     sig { params(path: T.nilable(String)).returns(T.nilable(::AST::Node)) }
     def self.parse_file(path)
-      return nil unless path
-      ::Parser::CurrentRuby.parse_file(path)
+      @@default_parser.parse_file(path)
     end
   end
 end
