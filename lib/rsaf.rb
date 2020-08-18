@@ -17,6 +17,7 @@ require_relative 'rsaf/parser'
 require_relative 'rsaf/phases/build_scopes'
 require_relative 'rsaf/phases/build_inheritance'
 require_relative 'rsaf/source_file'
+require_relative 'rsaf/source_tree'
 
 module RSAF
   class CLI < Thor
@@ -32,6 +33,16 @@ module RSAF
       config = parse_config
       model = parse_files(*T.unsafe(files))
       Model::ModelPrinter.new(colors: config.colors).print_model(model)
+    end
+
+    desc "files *FILES", "print files tree"
+    sig { params(files: String).void }
+    def files(*files)
+      config = parse_config
+      compiler = Compiler.new(config)
+      sources = compiler.list_files(*T.unsafe(files))
+      tree = SourceTree.new(*sources)
+      tree.show()
     end
 
     no_commands do
