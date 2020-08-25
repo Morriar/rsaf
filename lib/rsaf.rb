@@ -18,6 +18,9 @@ require_relative 'rsaf/phases/build_scopes'
 require_relative 'rsaf/phases/build_inheritance'
 require_relative 'rsaf/source_file'
 require_relative 'rsaf/source_tree'
+require_relative 'rsaf/treemap'
+
+require_relative 'rsaf/metrics'
 
 module RSAF
   class CLI < Thor
@@ -42,7 +45,25 @@ module RSAF
       compiler = Compiler.new(config)
       sources = compiler.list_files(*T.unsafe(files))
       tree = SourceTree.new(*sources)
-      tree.show()
+      tree.show
+    end
+
+    desc "metrics *FILES", "show various metrics"
+    sig { params(files: String).void }
+    def metrics(*files)
+      # config = parse_config
+      model = parse_files(*T.unsafe(files))
+      model.root.show_metrics
+    end
+
+    desc "treemap *FILES", "print files tree"
+    sig { params(files: String).void }
+    def treemap(*files)
+      # config = parse_config
+      model = parse_files(*T.unsafe(files))
+      tree = model.sigs_treemap
+      tree.to_google_treemap
+      # TODO collect files and dirs
     end
 
     no_commands do
