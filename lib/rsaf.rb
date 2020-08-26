@@ -62,7 +62,7 @@ module RSAF
       # config = parse_config
       model = parse_files(*T.unsafe(files))
       tree = model.sigs_treemap
-      tree.to_google_treemap
+      # tree.to_google_treemap
       # TODO collect files and dirs
     end
 
