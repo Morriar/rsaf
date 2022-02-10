@@ -77,19 +77,22 @@ module RSAF
       # TODO add errors to file
     end
 
-    sig { params(paths: String).returns(T::Array[SourceFile]) }
-    def list_files(*paths)
-      files = []
+    sig { params(paths: String, ignore: T::Array[String]).returns(T::Array[SourceFile]) }
+    def list_files(*paths, ignore: [])
+      files = T.let([], T::Array[String])
       paths.each do |path|
         unless File.exist?(path)
           @logger.warn("can't find `#{path}`.")
           next
         end
         if File.directory?(path)
-          files = files.concat(Dir.glob(Pathname.new("#{path}/**/*.{rb,rbi}").cleanpath))
+          files = files.concat(Dir.glob(Pathname.new("#{path}/**/*.{rb,rbi}").cleanpath.to_s))
         else
           files << path
         end
+      end
+      ignore.each do |ignored_path|
+        files.reject! { |path| path.start_with?(ignored_path) }
       end
       files.uniq.sort.map do |f|
         strictness = File.read(f).match(/#\s*typed\s*:\s*([a-zA-Z_]+)\s*$/)&.[](1)

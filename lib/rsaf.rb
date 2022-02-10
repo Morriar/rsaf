@@ -29,18 +29,22 @@ module RSAF
 
     desc "print *FILES", "print model"
     sig { params(files: String).void }
+    option :ignore, desc: "Ignored directories", type: :array, default: []
     def print(*files)
       config = parse_config
-      model = parse_files(*T.unsafe(files))
+      ignore = options[:ignore]
+      model = parse_files(*T.unsafe(files), ignore: ignore)
       Model::ModelPrinter.new(colors: config.colors).print_model(model)
     end
 
     desc "files *FILES", "print files tree"
     sig { params(files: String).void }
+    option :ignore, desc: "Ignored directories", type: :array, default: []
     def files(*files)
       config = parse_config
+      ignore = options[:ignore]
       compiler = Compiler.new(config)
-      sources = compiler.list_files(*T.unsafe(files))
+      sources = compiler.list_files(*T.unsafe(files), ignore: ignore)
       tree = SourceTree.new(*sources)
       tree.show()
     end
